@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2022", "module": "Preserve", "moduleResolution": "bundler",
+    "strict": true, "skipLibCheck": true, "esModuleInterop": true,
+    "jsx": "react-jsx", "jsxImportSource": "hono/jsx",
+    "types": ["bun"], "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "noEmit": true
+  },
+  "include": ["src/seekrss/**/*.ts", "src/seekrss/**/*.tsx", "src/server.ts", "tests/**/*.ts", "scripts/**/*.ts"]
+}
