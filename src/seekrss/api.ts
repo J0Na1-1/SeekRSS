@@ -2,11 +2,10 @@ import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { bodyLimit } from 'hono/body-limit';
 import { randomBytes, createHash, timingSafeEqual } from 'node:crypto';
-import { writeFileSync, readFileSync, chmodSync } from 'node:fs';
-import { join } from 'node:path';
+
 import { AppService } from './service';
 import { AppError } from './store';
-import { AdminRecovery } from './recovery';
+
 
 interface Hooks { testFeed?:(id:number)=>Promise<unknown>;testTelegram?:()=>Promise<unknown>;preview?:()=>unknown;status?:()=>unknown }
 interface Session {hash:string;csrf:string;expires_at:number}
@@ -14,11 +13,9 @@ const hash=(v:string)=>createHash('sha256').update(v).digest('hex');
 const equal=(a:string,b:string)=>{const aa=Buffer.from(a),bb=Buffer.from(b);return aa.length===bb.length&&timingSafeEqual(aa,bb);};
 
 export function createApi(service:AppService,hooks:Hooks={}){
- const app=new Hono();const db=service.store.db;const keyPath=join(service.store.dataDir,'setup.key');
+ const app=new Hono();const db=service.store.db;
  const publicOrigin=process.env.PUBLIC_ORIGIN?new URL(process.env.PUBLIC_ORIGIN).origin:undefined;
- const recovery=new AdminRecovery(db);
- let resetCount=0,resetWindow=Date.now(),resetKey='';
- if(!process.env.SETUP_KEY){try{writeFileSync(keyPath,randomBytes(32).toString('hex'),{flag:'wx',mode:0o600});}catch(e:any){if(e.code!=='EEXIST')throw e;}chmodSync(keyPath,0o600);}
+
  const initialized=()=>!!db.query('SELECT id FROM admin WHERE id=1').get();
  const session=(c:any):Session|undefined=>{const cookie=getCookie(c,'seekrss_session');if(!cookie)return;return db.query('SELECT * FROM sessions WHERE hash=? AND expires_at>?').get(hash(cookie),Date.now()) as Session|undefined;};
  const ok=(c:any,data:unknown)=>c.json({ok:true,data});
@@ -32,16 +29,8 @@ export function createApi(service:AppService,hooks:Hooks={}){
      if(!c.req.header('Content-Type')?.toLowerCase().startsWith('application/json'))throw new AppError('仅支持 JSON 请求',415);
    }
    const path=new URL(c.req.url).pathname;
-   if(['/api/auth/reset','/api/auth/reset/check'].includes(path)){
-     if(c.req.method==='POST'){
-       const data=await json(c);recovery.check(data.token);
-       const key=hash(data.token);
-       if(key!==resetKey||Date.now()-resetWindow>60_000){resetKey=key;resetWindow=Date.now();resetCount=0;}
-       if(++resetCount>10)throw new AppError('重设尝试过多，请一分钟后重试',429);
-     }
-     return next();
-   }
-   if(['/api/auth/status','/api/auth/login','/api/auth/setup'].includes(path)){
+   if(path.startsWith('/api/auth/')&&!['/api/auth/status','/api/auth/login','/api/auth/logout'].includes(path))return c.json({ok:false,error:'接口不存在'},404);
+   if(['/api/auth/status','/api/auth/login'].includes(path)){
      if(c.req.method==='POST'){if(Date.now()-authWindow>60_000){authWindow=Date.now();authCount=0;}if(++authCount>10)throw new AppError('登录尝试过多，请一分钟后重试',429);}
      return next();
    }
@@ -52,12 +41,7 @@ export function createApi(service:AppService,hooks:Hooks={}){
  const json=async(c:any)=>{try{const data=await c.req.json();if(!data||typeof data!=='object'||Array.isArray(data))throw new Error();return data;}catch{throw new AppError('无效 JSON');}};
  const credentials=(data:any)=>{if(typeof data.username!=='string'||!/^[\p{L}\p{N}_.@-]{1,64}$/u.test(data.username)||typeof data.password!=='string'||data.password.length<12||data.password.length>128)throw new AppError('用户名无效或密码长度不在 12–128 位');return {username:data.username,password:data.password};};
  app.get('/api/auth/status',c=>{const s=session(c);return ok(c,{initialized:initialized(),authenticated:!!s,...(s?{csrf:s.csrf}:{})});});
- app.post('/api/auth/setup',async c=>{
-   if(initialized())throw new AppError('管理员已存在',409);const data=await json(c);const v=credentials(data);const setup=process.env.SETUP_KEY||readFileSync(keyPath,'utf8').trim();if(!setup||typeof data.setup_key!=='string'||!data.setup_key||!equal(data.setup_key,setup))throw new AppError('初始化密钥不正确',403);
-   const password=await Bun.password.hash(v.password,{algorithm:'argon2id',memoryCost:19456,timeCost:2});
-   db.transaction(()=>{if(initialized())throw new AppError('管理员已存在',409);db.query('INSERT INTO admin(id,username,password_hash) VALUES(1,?,?)').run(v.username,password);}).immediate();
-   return ok(c,{csrf:setSession(c)});
- });
+
  app.post('/api/auth/login',async c=>{
    const data=credentials(await json(c));
    const admin=db.query('SELECT username,password_hash FROM admin WHERE id=1').get() as {username:string;password_hash:string}|null;
@@ -70,8 +54,7 @@ export function createApi(service:AppService,hooks:Hooks={}){
    }).immediate();
    return ok(c,{csrf});
  });
- app.post('/api/auth/reset/check',async c=>ok(c,recovery.check((await json(c)).token)));
- app.post('/api/auth/reset',async c=>{const data=await json(c);await recovery.reset(data.token,data.password,data.confirm_password);return ok(c,{});});
+
  app.post('/api/auth/logout',c=>{const s=session(c);if(s)db.query('DELETE FROM sessions WHERE hash=?').run(s.hash);deleteCookie(c,'seekrss_session',{path:'/'});return ok(c,{});});
  app.get('/api/feeds',c=>ok(c,service.listFeeds()));
  app.post('/api/feeds',async c=>ok(c,service.saveFeed(await json(c))));

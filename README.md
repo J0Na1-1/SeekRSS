@@ -29,7 +29,10 @@ NodeSeek RSS 按实时源设计；正常工况以“条目进入 RSS 到 Telegra
 ```bash
 git clone https://github.com/J0Na1-1/SeekRSS.git
 cd SeekRSS
-docker-compose up -d --build
+cp docker-compose.yml docker-compose.local.yml
+chmod 600 docker-compose.local.yml
+# 编辑 docker-compose.local.yml：将 command 中 -pwd=xxx 的 xxx 换成你的密码（12–128 位）
+docker-compose -f docker-compose.local.yml up -d --build
 ```
 
 有 Compose 插件可使用 `docker compose`。默认监听服务器 `127.0.0.1:3010`。远程访问推荐 SSH 隧道：
@@ -40,22 +43,36 @@ ssh -L 3010:127.0.0.1:3010 user@your-server
 
 随后在电脑访问 http://127.0.0.1:3010。公网使用应放到 HTTPS 反向代理后，设置 `COOKIE_SECURE=true` 与准确的 `PUBLIC_ORIGIN=https://你的域名或IP`；后端保持本机或私有网络监听，不要直接公开 HTTP 管理页。`PUBLIC_ORIGIN` 用于严格校验浏览器的 Origin，不信任客户端随意传入的转发头。
 
-### 首次设置
+### 管理员密码：仅服务器本地配置
 
-1. 在服务器读取一次性初始化密钥，不要公开：
-   ```bash
-   docker-compose exec seekrss bun -e 'console.log(await Bun.file("/app/data/setup.key").text())'
-   ```
-2. Web 创建唯一管理员，密码至少 12 位，输入初始化密钥。
-3. 在“管理 → 机器人”配置新建 Bot 的 Token 及你的 Telegram 数字用户 ID。
-4. 先向 Bot 发 `/start`，再添加推送目标。
-5. 添加 RSS 和规则，测试匹配及发送。
+不提供 Web 初始化或密码重置入口，不生成恢复链接。密码按运维需要明文保存在本地配置中，SQLite 仍只保存 Argon2id 哈希。
+
+**Docker**：在私有 `docker-compose.local.yml` 中编辑：
+
+```yaml
+command: ["bun", "run", "dist/server.js", "-pwd=xxx"]
+```
+
+把 `xxx` 换成 12–128 位密码，不要使用示例值。Compose 会解析 `$`，每个字面量 `$` 必须写成 `$$`；使用 YAML 字符串正确转义引号和反斜杠。没有经过 shell，不要加 shell 转义符。优先使用不会被 Compose 插值的密码字符。
+
+**源码部署**：复制 `.env.example` 为本地 `.env`，权限设为 `600`，填写：
+
+```dotenv
+ADMIN_PASSWORD='xxx'
+# 新数据库默认用户名 admin；已有数据库不填写则保留原管理员名称。
+# ADMIN_USERNAME=admin
+```
+
+从项目目录执行 `bun install --frozen-lockfile && bun run build && bun start`。Bun 自动读取本地 `.env`；单引号包裹值可保留 `$` 字面量，复杂值请按 Bun dotenv 格式转义。若同时存在参数和环境变量，`-pwd=` 优先。缺失、空值、重复参数或不符合长度的密码会拒绝启动，没有内置默认密码。
+
+更改密码后，Docker 执行 `docker-compose -f docker-compose.local.yml up -d --force-recreate seekrss`（仅 restart 不更新容器参数）；源码部署重启服务。启动时同步密码哈希，变更密码或用户名会撤销所有旧会话；配置未变则保留原会话，不影响订阅、规则和机器人配置。不要直接编辑数据库。
+
+**明文风险**：本地文件读取权限、Docker daemon 权限、`docker inspect`、进程参数、Compose config 输出和运维备份都可能暴露密码。这不是密文保险箱；不要将真实密码写进公开模板、截图或日志。`.env`、`docker-compose.local.yml` 已被 Git 和 Docker 构建上下文排除；若坚持编辑受 Git 跟踪的 `docker-compose.yml` 本体，必须自行防止提交泄漏，强烈建议使用忽略的本地副本。
+
+首次启动后，以默认 `admin`（或保留/指定的用户名）和本地配置的密码登录。在“管理 → 机器人”配置新建 Bot 的 Token 与 Telegram 数字用户 ID；先向 Bot 发 `/start`，再添加推送目标、RSS 源和规则，测试匹配及发送。
 
 Token 在 Web 输入并加密保存，不通过聊天配置，也不会回显。不要复用其他系统正在轮询的 Bot Token。
 
-### 忘记管理员密码
-
-仅服务器管理员可运行 `docker-compose exec seekrss bun dist/admin-reset.js`（需要设置准确的 HTTPS `PUBLIC_ORIGIN`），生成默认 30 分钟有效的一次性链接。输出是敏感持有者链接，请私密交付本人，不要写入公开日志。链接令牌只存哈希，重新生成即作废旧链接；页面通过 URL fragment 接收并立即清除，密码由本人在 HTTPS 表单输入。重设成功原子作废链接和所有旧会话，不修改账号、订阅、规则或 Token。不要删除管理员表或用公开初始化接口绕过恢复。
 
 ## Telegram 命令
 
@@ -86,17 +103,17 @@ Token 在 Web 输入并加密保存，不通过聊天配置，也不会回显。
 
 ## 数据、备份和升级
 
-Docker 数据卷包含 SQLite、Token 加密密钥 `secret.key` 和初始化密钥 `setup.key`。加密密钥丢失将无法解密已保存 Token。
+Docker 数据卷包含 SQLite 和 Token 加密密钥 `secret.key`；管理员明文密码单独保存在本地 Compose / `.env`。加密密钥丢失将无法解密已保存 Token。旧版 `setup.key` 不再使用。
 
 ```bash
-docker-compose exec seekrss bun scripts/backup.ts /app/data/backup.db
+docker-compose -f docker-compose.local.yml exec seekrss bun scripts/backup.ts /app/data/backup.db
 ```
 
 备份工具使用 SQLite `VACUUM INTO` 生成一致性备份。数据库和配套密钥应离线安全保存；外部 `SECRET_KEY` 需另存。备份不是公开下载文件。
 
 恢复必须先停服务，并备份现有整个数据卷；替换数据库及匹配密钥。旧 WAL/SHM 文件处理前必须确认数据库已关闭。**不要用 `down -v` 更新，它会删除数据卷。**
 
-更新：先备份，然后 `git pull`、`docker-compose up -d --build`。当前新数据库与上游旧数据库不兼容，不要覆盖上游数据卷。
+更新：先备份数据库、匹配密钥与私有配置，然后 `git pull`、比对模板更新并执行 `docker-compose -f docker-compose.local.yml up -d --build`。当前新数据库与上游旧数据库不兼容，不要覆盖上游数据卷。
 
 ## 开发
 

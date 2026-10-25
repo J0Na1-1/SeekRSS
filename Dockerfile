@@ -5,7 +5,7 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY tsconfig.json tsconfig.seekrss.json ./
 COPY src/ ./src/
-COPY scripts/admin-reset.ts ./scripts/admin-reset.ts
+
 RUN bun run build
 
 FROM oven/bun:1.4.4 AS production-deps

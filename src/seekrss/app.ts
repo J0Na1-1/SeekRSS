@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { SeekRSSPage } from './ui';
-import { ResetPage } from './reset-ui';
+
 
 export function createWebApp(api: {fetch: (request:Request, ...args:any[])=>any}, options:{healthy?:()=>boolean}={}) {
   const app=new Hono();
@@ -15,7 +15,7 @@ export function createWebApp(api: {fetch: (request:Request, ...args:any[])=>any}
   });
   app.get('/health',c=>c.json({ok:true,service:'SeekRSS'},options.healthy?.()===false?503:200));
   app.get('/',c=>c.html('<!doctype html>'+String(SeekRSSPage({}))));
-  app.get('/reset',c=>c.html('<!doctype html>'+String(ResetPage({}))));
+
   app.all('/api/*',c=>api.fetch(c.req.raw));
   app.get('/css/:name',async c=>{
     const name=c.req.param('name');
@@ -25,7 +25,7 @@ export function createWebApp(api: {fetch: (request:Request, ...args:any[])=>any}
     return new Response(file,{headers:{'Content-Type':'text/css; charset=utf-8'}});
   });
   app.get('/js/seekrss.js',()=>new Response(Bun.file('./public/js/seekrss.js'),{headers:{'Content-Type':'application/javascript; charset=utf-8'}}));
-  app.get('/js/reset.js',()=>new Response(Bun.file('./public/js/reset.js'),{headers:{'Content-Type':'application/javascript; charset=utf-8'}}));
+
   app.get('/favicon.svg',()=>new Response(Bun.file('./public/favicon.svg'),{headers:{'Content-Type':'image/svg+xml'}}));
   app.notFound(c=>c.json({ok:false,error:'Not found'},404));
   app.onError((_error,c)=>c.json({ok:false,error:'服务发生错误，请检查服务器日志（不含机密）'},500));

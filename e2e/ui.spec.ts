@@ -1,10 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+
 
 test('desktop and mobile Web CRUD uses the real local API and preserves publisher text safely',async({browser,request})=>{
- const password=randomBytes(24).toString('hex');
- const setup=await request.post('/api/auth/setup',{data:{username:'uitest',password,setup_key:readFileSync(process.env.UI_DATA_DIR+'/setup.key','utf8').trim()}});expect(setup.ok()).toBeTruthy();
+ const password=process.env.UI_PASSWORD!;
+ const setup=await request.post('/api/auth/login',{data:{username:'uitest',password}});expect(setup.ok()).toBeTruthy();
  const cookies=await request.storageState();
  const context=await browser.newContext({storageState:cookies});const page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('/');await expect(page.locator('#appPanel')).toBeVisible();

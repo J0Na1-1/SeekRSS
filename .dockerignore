@@ -1,6 +1,8 @@
 .git
 .env
 .env.*
+docker-compose.local.yml
+docker-compose.local.yaml
 node_modules
 data
 backups

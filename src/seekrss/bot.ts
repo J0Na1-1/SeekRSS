@@ -15,7 +15,7 @@ const BUTTONS: Record<string, string> = {
   '暂停推送': '/pause', '恢复推送': '/resume', '运行状态': '/status', '历史记录': '/history',
   '测试匹配': '/test', '推送目标': '/targets', '添加目标': '/targetadd', '帮助': '/help', '取消': '/cancel',
 };
-const HELP = `SeekRSS 单管理员控制台（仅私聊）\n/add 词1,词2 — 独立关键词\n/combo 词1,词2 — AND 组合\n/block 词1,词2 — 独立屏蔽\n/blockcombo 词1,词2 — AND 屏蔽\n/list /on ID /off ID /del ID\n/feedadd URL [名称] /feeds /feededit ID /feeddel ID\n/interval ID 秒 /feedpause ID /feedresume ID\n/pause /resume — 仅暂停推送，继续归档，恢复不补发\n/status /history /test [文本]\n/targets /targetadd chat_id [名称] /targetdel ID\n/cancel — 取消向导\n/start /help\nToken 和密码仅在受保护的 Web 设置页配置，切勿发送到聊天。`;
+const HELP = `SeekRSS 单管理员控制台（仅私聊）\n/add 词1,词2 — 独立关键词\n/combo 词1,词2 — AND 组合\n/block 词1,词2 — 独立屏蔽\n/blockcombo 词1,词2 — AND 屏蔽\n/list /on ID /off ID /del ID\n/feedadd URL [名称] /feeds /feededit ID /feeddel ID\n/interval ID 秒 /feedpause ID /feedresume ID\n/pause /resume — 仅暂停推送，继续归档，恢复不补发\n/status /history /test [文本]\n/targets /targetadd chat_id [名称] /targetdel ID\n/cancel — 取消向导\n/start /help\nBot Token 仅在受保护的 Web 设置页配置；管理员密码仅在服务器本地 docker-compose 的 -pwd= 参数或源码 .env 文件配置。切勿发送到聊天。`;
 const COMMANDS = ['start', 'help', 'add', 'combo', 'block', 'blockcombo', 'list', 'on', 'off', 'del',
   'feedadd', 'feeds', 'feededit', 'feeddel', 'interval', 'feedpause', 'feedresume', 'pause', 'resume',
   'status', 'history', 'test', 'targets', 'targetadd', 'targetdel', 'cancel']
@@ -171,7 +171,7 @@ export class BotController {
     let text = BUTTONS[message.text] ?? message.text;
     if (typeof text === 'string' && (/\b\d{5,}:[A-Za-z0-9_-]{15,}\b/.test(text) || /^\/(?:token|password|settoken|setpassword)\b/i.test(text))) {
       this.pending = undefined;
-      await this.reply(admin, '拒绝接收 Token 或密码。请仅在受保护的 Web 设置页配置，并删除聊天中的敏感消息。');
+      await this.reply(admin, '拒绝接收 Token 或密码。Bot Token 请在受保护的 Web 设置页配置；管理员密码请在服务器本地 docker-compose 的 -pwd= 参数或源码 .env 文件配置。请删除聊天中的敏感消息。');
       return;
     }
     if (typeof text !== 'string') return;

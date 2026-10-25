@@ -2,19 +2,21 @@ import {expect,test} from 'bun:test';
 import {tmpdir} from 'node:os';
 import {Store} from '../src/seekrss/store';
 import {AppService} from '../src/seekrss/service';
-import {mkdtempSync,rmSync,readFileSync} from 'node:fs';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {syncAdmin} from '../src/seekrss/admin-config';
 import {join} from 'node:path';
 
-test('HTTP bootstrap, durable session, CSRF, authenticated CRUD and redaction',async()=>{
+test('configured administrator, durable session, CSRF, authenticated CRUD and redaction',async()=>{
  let factory:any;try{factory=(await import('../src/seekrss/api')).createApi;}catch{}
  expect(typeof factory).toBe('function');
  const dir=mkdtempSync(join((process.env.TMPDIR||tmpdir()),'seek-api-'));const store=new Store(join(dir,'db'));
  try{const service=new AppService(store);let api=factory(service);let cookie='',csrf='';
  const req=async(path:string,method='GET',data?:unknown,extra:Record<string,string>={})=>{const r=await api.fetch(new Request('http://localhost/api'+path,{method,headers:{'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{}),...(csrf?{'X-CSRF-Token':csrf}:{}),...extra},...(data===undefined?{}:{body:JSON.stringify(data)})}));return {r,b:await r.json() as any};};
  expect((await req('/feeds')).r.status).toBe(401);expect((await req('/entries')).r.status).toBe(401);
- expect((await req('/auth/status')).b.data.initialized).toBe(false);
- expect((await req('/auth/setup','POST',{username:'admin',password:'offline-test-password',setup_key:'wrong'})).r.status).toBe(403);
- const setup=await req('/auth/setup','POST',{username:'admin',password:'offline-test-password',setup_key:readFileSync(join(dir,'setup.key'),'utf8').trim()});expect(setup.r.status).toBe(200);cookie=setup.r.headers.get('set-cookie')!.split(';')[0]!;
+ await syncAdmin(store,{password:'offline-test-password'});
+ expect((await req('/auth/status')).b.data.initialized).toBe(true);
+ expect((await req('/auth/login','POST',{username:'admin',password:'offline-wrong-password'})).r.status).toBe(401);
+ const setup=await req('/auth/login','POST',{username:'admin',password:'offline-test-password'});expect(setup.r.status).toBe(200);cookie=setup.r.headers.get('set-cookie')!.split(';')[0]!;
  expect(setup.r.headers.get('set-cookie')).toContain('HttpOnly');expect(setup.r.headers.get('set-cookie')).toContain('SameSite=Strict');
  csrf=(await req('/auth/status')).b.data.csrf;expect(csrf.length).toBeGreaterThan(20);
  expect((await req('/feeds','POST',{name:'n',url:'https://example.com/rss'},{'X-CSRF-Token':'wrong'})).r.status).toBe(403);

@@ -1,5 +1,6 @@
 import {expect,test} from 'bun:test';
-import {mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync} from 'node:fs';
+import {syncAdmin} from '../src/seekrss/admin-config';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {Store} from '../src/seekrss/store';
@@ -12,8 +13,9 @@ test('configured HTTPS public origin supports reverse-proxy login without trusti
  process.env.PUBLIC_ORIGIN='https://192.0.2.10';process.env.COOKIE_SECURE='true';
  const store=new Store(join(dir,'db'));
  try{
+  await syncAdmin(store,{password:'offline-proxy-password'});
   const api=createApi(new AppService(store));
-  const request=(origin:string,extra:Record<string,string>={})=>api.fetch(new Request('http://192.0.2.10/api/auth/setup',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,...extra},body:JSON.stringify({username:'admin',password:'offline-proxy-password',setup_key:readFileSync(join(dir,'setup.key'),'utf8').trim()})}));
+  const request=(origin:string,extra:Record<string,string>={})=>api.fetch(new Request('http://192.0.2.10/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,...extra},body:JSON.stringify({username:'admin',password:'offline-proxy-password'})}));
   expect((await request('https://evil.test',{'X-Forwarded-Proto':'https','X-Forwarded-Host':'192.0.2.10'})).status).toBe(403);
   expect((await request('http://192.0.2.10')).status).toBe(403);
   const result=await request('https://192.0.2.10');expect(result.status).toBe(200);

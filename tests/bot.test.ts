@@ -37,6 +37,16 @@ function fixture(respond?: (method:string, payload:any) => any) {
 }
 
 describe('BotController UX', () => {
+  test('help and secret rejection distinguish local admin passwords from protected Web Bot Token settings', async () => {
+    const {bot, calls, update} = fixture();
+    for (const text of ['/help', '/password synthetic-fixture-value']) {
+      await bot.handleUpdate(update(text));
+      const reply = calls.at(-1)!.payload.text;
+      expect(reply).toContain('Token');expect(reply).toContain('Web');
+      expect(reply).toContain('docker-compose');expect(reply).toContain('-pwd=');expect(reply).toContain('.env');
+      expect(reply).not.toContain('synthetic-fixture-value');
+    }
+  });
   test('/add persists comma separated independent include rules, unlike combo', async () => {
     const { bot, service, calls, update } = fixture();
     await bot.handleUpdate(update('/add Linux, RSS，VPS'));

@@ -59,6 +59,8 @@ jspm_packages/
 .yarn-integrity
 
 # dotenv environment variables file
+docker-compose.local.yml
+docker-compose.local.yaml
 .env
 .env.*
 !.env.example

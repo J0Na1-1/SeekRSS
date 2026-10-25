@@ -16,9 +16,9 @@ export const SeekRSSPage: FC = () => <html lang="zh-CN"><head>
       <h2 id="authTitle">正在检查登录状态…</h2>
       <Field label="管理员名称"><input class="input-field" name="username" autocomplete="username" required maxlength={64}/></Field>
       <Field label="密码"><input class="input-field" name="password" type="password" autocomplete="current-password" required minlength={12} maxlength={128}/></Field>
-      <div id="setupKeyField" hidden><Field label="首次初始化密钥"><input class="input-field" name="setup_key" type="password" autocomplete="off"/><small>从服务器数据卷的 setup.key 文件读取，仅首次设置需要。</small></Field></div>
+
       <button class="btn btn-primary btn-block" type="submit">继续</button><p id="authError" role="alert" class="error-text"></p>
-    </form><p class="muted">单管理员 · Web 与 Telegram 共用配置</p>
+    </form><p class="muted">单管理员 · 密码由服务器本地配置 · Web 与 Telegram 共用业务配置</p>
   </section>
   <main id="appPanel" class="home-container" hidden>
     <header class="home-header"><a class="header-logo" href="/"><span class="logo-icon">📡</span><span>SeekRSS</span></a>
