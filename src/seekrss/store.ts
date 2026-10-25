@@ -39,7 +39,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS admin (id INTEGER PRIMARY KEY CHECK(id=1),username TEXT NOT NULL,password_hash TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY,csrf TEXT NOT NULL,expires_at INTEGER NOT NULL);
       PRAGMA user_version=1;`);
-    this.db.query('INSERT OR IGNORE INTO settings(id,value) VALUES (1,?)').run(JSON.stringify({ admin_telegram_id: '', paused: false, host_min_interval_seconds: 10, template: 'compact', summary_length: 300, show_author: true, show_time: true, link_preview: false, revision: 1 }));
+    this.db.query('INSERT OR IGNORE INTO settings(id,value) VALUES (1,?)').run(JSON.stringify({ admin_telegram_id: '', paused: false, host_min_interval_seconds: 10, template: 'summary', summary_length: 300, show_author: false, show_time: true, link_preview: false, revision: 1 }));
   }
   private encryptionKey(): Buffer {
     if (process.env.SECRET_KEY) return createHash('sha256').update(process.env.SECRET_KEY).digest();

@@ -15,5 +15,8 @@ describe('SeekRSS management shell', () => {
     expect(html).toContain('blockcombo');
     expect(html).toContain('telegramForm');
     expect(html).toContain('/js/seekrss.js');
+    expect(html).toContain('标题 → 命中规则 → 简述 → 发布时间 → 原文链接');
+    expect(html).toContain('UTC+8');
+    expect(html).not.toContain('显示作者');
   });
 });

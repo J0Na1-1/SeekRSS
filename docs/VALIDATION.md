@@ -2,13 +2,16 @@
 
 ## Status
 
-Development source, not a fully externally accepted production release. Administrator authentication is now managed by trusted local configuration, with **no Web setup or password-recovery page, API or operator reset-link CLI**. These source changes have not been deployed to the existing public service.
+Development source, not a fully externally accepted production release. Administrator authentication is managed by trusted local configuration, with **no Web setup or password-recovery page, API or operator reset-link CLI**. The local-configuration authentication version was previously published and separately deployed. The current five-part message-format changes remain local and unpublished; this checkpoint does not update either running instance.
 
 No real Telegram credentials, production database or production session was used in this validation. No claim of real Telegram delivery, phone-notification latency, or permission for sustained one-second forum access is made.
 
 ## Latest local verification
 
-- **111 tests passed, 0 failed, across 39 files**, with 571 assertions (`bun --no-env-file test tests/`). This includes regressions proving a source rebuild removes the obsolete password-reset executable, Bot guidance uses the correct local-password configuration boundary, failed session deletion rolls back credential changes, and successful rotation preserves every populated application table.
+**Known issue accepted for release by the operator.** The checks below passed, but independent review identified a remaining summary-limit defect: secondary HTML-budget truncation can append an ellipsis to an already complete 300-code-point brief when the ellipsis changes keyword highlighting, producing 301 visible code points within a 4,091-character HTML message. This was independently reproduced locally with valid rule names and remains unfixed by explicit operator decision. The format review did not pass; acceptance of this one-code-point deviation is not a claim of independent approval. The operator authorized publication and the IPv6 instance update; this document records local verification, not proof of remote CI or deployment.
+
+- **155 tests passed, 0 failed, across 39 files**, with 2,756 assertions (`bun --no-env-file test tests/`). Coverage includes the five-part formatter, fixed UTC+8 dates, escaped metadata, message-length boundaries, ASCII/emoji summary limits (including the truncation ellipsis), the standard/300-character defaults in actual fixture outbox payloads, and the existing authentication, session, data-preservation and clean-build regressions.
+- **Two browser integration tests passed** against isolated fixture data. Desktop and 390px mobile form submissions exercised the real authenticated settings API for standard/300 and compact/0, including time, link-preview, author-disabled and revision fields. The test reads the persisted settings back after each submission and reloads the form.
 - Typecheck and production server build passed. Production dependency audit found no vulnerabilities in 13 checked packages; this is a point-in-time dependency check, not a security guarantee.
 - The Docker Compose template rendered successfully. The checked-in `-pwd=xxx` value is intentionally invalid and must be replaced in a private local copy.
 - A real source server read an isolated, mode-0600 `.env`, accepted the exact configured password including literal `$` and `=`, returned an HttpOnly session, and rejected access to `.env`, removed recovery assets and setup API. Missing or malformed credentials exited before creating a database.
@@ -54,7 +57,7 @@ These are earlier checkpoints, not deployment of the current source changes:
 
 ## Publication boundary
 
-Public Git history starts from a parentless source snapshot; inherited development history is excluded because it may contain credentials. Runtime databases, backups, encryption keys, sessions and private operator configuration are not source artifacts. The current local authentication changes are not yet pushed at this checkpoint. Local checks do not establish remote CI success for a new commit.
+Public Git history starts from a parentless source snapshot; inherited development history is excluded because it may contain credentials. Runtime databases, backups, encryption keys, sessions and private operator configuration are not source artifacts. The local-configuration authentication version was published before this checkpoint; the current message-format changes have not been committed, pushed or deployed. Local checks do not establish remote CI success for a new commit.
 
 ## External acceptance still required
 

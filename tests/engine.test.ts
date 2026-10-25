@@ -57,6 +57,15 @@ test('outbox sends escaped HTML through injected transport and persists Telegram
   expect(store.listDeliveries()[0]).toMatchObject({ status: 'sent', attempts: 1, message_id: 987, sent_at: 1234 });
 });
 
+test('new installations default to the requested summary layout in real outbox payloads', async () => {
+  const store = fixture();
+  expect(store.getSettings()).toMatchObject({ template: 'summary', show_author: false, show_time: true, summary_length: 300 });
+  queue(store); const messages: any[] = [];
+  const engine = new Engine(store, { telegramTransport: async (_token, _method, payload) => { messages.push(payload); return { ok: true, result: { message_id: 1 } }; } });
+  await engine.sendPending();
+  expect(messages[0].text).toBe('<b>GPU</b> &lt;sale&gt;\n命中规则：GPU\n\n暂无简述\n\n发布时间：未知\n原文链接：https://example.com/post');
+});
+
 test('network, parse and non-success failures back off durably without baselining', async () => {
   const store = fixture(); store.saveSettings({ host_min_interval_seconds: 1 }); const f = feed(store); let now = 1000; let phase = 0;
   const engine = new Engine(store, { now: () => now, fetcher: (async () => { if (phase++ === 0) throw new Error('socket token-secret'); if (phase === 2) return new Response('<rss>'); if (phase === 3) return new Response(rss(), { status: 500 }); return new Response(rss()); }) as unknown as typeof fetch });

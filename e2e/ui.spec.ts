@@ -26,3 +26,52 @@ test('desktop and mobile Web CRUD uses the real local API and preserves publishe
  await page.locator('#settingsBtn').click();await page.locator('[data-tab=targets]').click();page.once('dialog',d=>d.accept());await page.locator('#targetsList').getByText('删除',{exact:true}).click();await expect(page.locator('#targetsList .config-item')).toHaveCount(0);
  await page.locator('#closeDrawer').click();await page.locator('#logoutBtn').click();await expect(page.locator('#authPanel')).toBeVisible();expect(errors).toEqual([]);await context.close();
 });
+
+test('style form submits standard and compact preferences through the real authenticated API', async ({ browser, request }) => {
+  const login = await request.post('/api/auth/login', { data: { username: 'uitest', password: process.env.UI_PASSWORD! } });
+  expect(login.ok()).toBeTruthy();
+  const context = await browser.newContext({ storageState: await request.storageState() });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto('/');
+    await expect(page.locator('#appPanel')).toBeVisible();
+    await page.locator('#settingsBtn').click();
+    await page.locator('[data-tab=template]').click();
+    const form = page.locator('#templateForm');
+    await expect(form.locator('[name=show_author]')).toHaveCount(0);
+    for (const scenario of [
+      { template: 'summary', summary_length: 300, show_time: true, link_preview: false, width: 1280 },
+      { template: 'compact', summary_length: 0, show_time: false, link_preview: true, width: 390 },
+    ]) {
+      await page.setViewportSize({ width: scenario.width, height: 844 });
+      const previous = (await (await page.request.get('/api/settings')).json()).data;
+      await form.locator('[name=template]').selectOption(scenario.template);
+      await form.locator('[name=summary_length]').fill(String(scenario.summary_length));
+      await form.locator('[name=show_time]').setChecked(scenario.show_time);
+      await form.locator('[name=link_preview]').setChecked(scenario.link_preview);
+      const responsePromise = page.waitForResponse(response => new URL(response.url()).pathname === '/api/settings' && response.request().method() === 'PUT');
+      await form.locator('[type=submit]').click();
+      const response = await responsePromise;
+      expect(response.ok()).toBeTruthy();
+      const expected = { template: scenario.template, summary_length: scenario.summary_length, show_author: false, show_time: scenario.show_time, link_preview: scenario.link_preview, revision: previous.revision };
+      expect(response.request().postDataJSON()).toEqual(expected);
+      expect((await response.json()).data).toMatchObject({ ...expected, revision: previous.revision + 1 });
+      await expect(form.locator('[type=submit]')).toBeEnabled();
+      const readback = (await (await page.request.get('/api/settings')).json()).data;
+      expect(readback).toMatchObject({ ...expected, revision: previous.revision + 1 });
+      await page.reload();
+      await expect(page.locator('#appPanel')).toBeVisible();
+      await page.locator('#settingsBtn').click();
+      await page.locator('[data-tab=template]').click();
+      await expect(form.locator('[name=template]')).toHaveValue(scenario.template);
+      await expect(form.locator('[name=summary_length]')).toHaveValue(String(scenario.summary_length));
+      await expect(form.locator('[name=show_time]')).toBeChecked({ checked: scenario.show_time });
+      await expect(form.locator('[name=link_preview]')).toBeChecked({ checked: scenario.link_preview });
+    }
+    expect(errors).toEqual([]);
+  } finally {
+    await context.close();
+  }
+});
